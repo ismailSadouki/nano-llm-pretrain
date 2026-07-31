@@ -55,58 +55,58 @@ I -- "fixed seed,<br/>temp/top-k/top-p" --> J
 
 
 
+```text
 Corpus
   │
   ▼
 Data Pipeline
-  ├─ Streaming
-  ├─ Filtering
-  ├─ MinHash Deduplication
-  └─ Data Statement
+  ├── Streaming
+  ├── Filtering
+  ├── MinHash Deduplication
+  └── Data Statement
   │
   ▼
 Tokenizer
-  ├─ Custom BPE
-  └─ Fertility Analysis
+  ├── Custom BPE
+  └── Fertility Analysis
   │
   ▼
 Packed Arrays
-  ├─ EOS Boundaries
-  └─ x/y Tensors
+  ├── EOS Boundaries
+  └── x/y Tensors
   │
   ▼
 Model
-  ├─ RoPE
-  ├─ RMSNorm
-  ├─ GQA
-  └─ SwiGLU
+  ├── RoPE
+  ├── RMSNorm
+  ├── GQA
+  └── SwiGLU
   │
   ▼
 Training
-  ├─ AMP
-  ├─ Cosine LR
-  └─ Gradient Accumulation
+  ├── AMP
+  ├── Cosine LR
+  └── Gradient Accumulation
   │
   ▼
 Checkpoints & Logs
-  ├─ Resume
-  ├─ Checkpoints
-  └─ Weights & Biases
+  ├── Atomic Save/Resume
+  └── Weights & Biases
   │
   ▼
 Evaluation
-  ├─ Perplexity
-  ├─ Held-out Validation
-  └─ Sample Generation
+  ├── Perplexity
+  └── Sample Generation
   │
   ▼
 Generation
-  ├─ Temperature
-  ├─ Top-k
-  └─ Top-p
+  ├── Temperature
+  ├── Top-k
+  └── Top-p
   │
   ▼
 Portfolio
-  ├─ README
-  ├─ Benchmarks
-  └─ Technical Write-up
+  ├── README
+  ├── Benchmarks
+  └── Technical Write-up
+```
