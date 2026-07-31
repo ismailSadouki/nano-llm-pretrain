@@ -2,6 +2,9 @@
 
 ## Architecture
 
+End-to-end LLM pretraining pipeline, pure PyTorch, no transformers import in model/train code.
+
+
 ```mermaid
 flowchart LR
 
