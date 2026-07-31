@@ -158,9 +158,11 @@ Portfolio
 
 
 
+```mermaid
 flowchart LR
 
 A["Corpus"]
 B["Data Pipeline<br/><a href='notes/decisions.md#data-pipeline'>Notes ↗</a>"]
 C["Tokenizer<br/><a href='notes/decisions.md#tokenizer'>Notes ↗</a>"]
 ...
+```
