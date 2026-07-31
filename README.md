@@ -1,5 +1,7 @@
 # nano-llm-pretrain
 
+## Architecture
+
 ```mermaid
 flowchart LR
 
@@ -43,3 +45,68 @@ G -- "atomic save/resume,<br/>W&B logging" --> H
 H -- "hould-out PPL,<br/>bootstrap CI" --> I
 I -- "fixed seed,<br/>temp/top-k/top-p" --> J
 ```
+
+
+
+
+
+> **Pipeline overview (text version)**
+
+
+
+
+Corpus
+  │
+  ▼
+Data Pipeline
+  ├─ Streaming
+  ├─ Filtering
+  ├─ MinHash Deduplication
+  └─ Data Statement
+  │
+  ▼
+Tokenizer
+  ├─ Custom BPE
+  └─ Fertility Analysis
+  │
+  ▼
+Packed Arrays
+  ├─ EOS Boundaries
+  └─ x/y Tensors
+  │
+  ▼
+Model
+  ├─ RoPE
+  ├─ RMSNorm
+  ├─ GQA
+  └─ SwiGLU
+  │
+  ▼
+Training
+  ├─ AMP
+  ├─ Cosine LR
+  └─ Gradient Accumulation
+  │
+  ▼
+Checkpoints & Logs
+  ├─ Resume
+  ├─ Checkpoints
+  └─ Weights & Biases
+  │
+  ▼
+Evaluation
+  ├─ Perplexity
+  ├─ Held-out Validation
+  └─ Sample Generation
+  │
+  ▼
+Generation
+  ├─ Temperature
+  ├─ Top-k
+  └─ Top-p
+  │
+  ▼
+Portfolio
+  ├─ README
+  ├─ Benchmarks
+  └─ Technical Write-up
