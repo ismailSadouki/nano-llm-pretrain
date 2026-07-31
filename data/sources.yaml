@@ -1,0 +1,30 @@
+version: 1
+
+sources:
+  - name: FineWeb
+    provider: Hugging Face
+    dataset: HuggingFaceFW/fineweb
+    language: en
+    original_source: Common Crawl
+    time_span: "2013-2024"
+
+    intended_subset:
+      target_tokens: 200000000
+
+    planned_processing:
+      - unicode_normalization
+      - document_filtering
+      - exact_deduplication
+      - minhash_deduplication
+      - tokenizer_training
+      - sequence_packing
+
+    risks:
+      - web_bias
+      - toxic_content
+      - benchmark_contamination
+      - factual_errors
+
+    notes: >
+      FineWeb is already filtered and deduplicated.
+      This project reimplements these stages for educational purposes.
