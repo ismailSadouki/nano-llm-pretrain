@@ -113,3 +113,54 @@ Portfolio
   ├── Benchmarks
   └── Technical Write-up
 ```
+
+
+
+# Engineering Decisions
+
+## Data Pipeline
+
+- Use FineWeb instead of FineWeb-Edu.
+- MinHash threshold = 0.85.
+- ...
+
+## Tokenizer
+
+- Vocabulary = 32k.
+- Normalization = NFC.
+- ...
+
+## Packed Arrays
+
+- Sequence length = 1024.
+- EOS between documents.
+- ...
+
+## Model
+
+- RoPE
+- RMSNorm
+- GQA
+- SwiGLU
+
+## Training
+
+- bf16
+- Cosine LR
+- Warmup = 2000 steps
+- ...
+
+
+
+
+
+
+
+
+
+flowchart LR
+
+A["Corpus"]
+B["Data Pipeline<br/><a href='notes/decisions.md#data-pipeline'>Notes ↗</a>"]
+C["Tokenizer<br/><a href='notes/decisions.md#tokenizer'>Notes ↗</a>"]
+...
