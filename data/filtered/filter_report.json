@@ -1,0 +1,89 @@
+{
+  "stats": {
+    "seen": 1000,
+    "kept": 996,
+    "dropped": 4,
+    "reasons": {
+      "repeated_chars": 3,
+      "too_short": 1
+    },
+    "keep_rate": 0.996,
+    "drop_rate": 0.004
+  },
+  "metrics": {
+    "char_length": {
+      "min": 217,
+      "max": 209976,
+      "mean": 3281.041,
+      "median": 1736.5,
+      "p95": 10328.55
+    },
+    "symbol_ratio": {
+      "min": 0.008797653958944282,
+      "max": 0.13661971830985917,
+      "mean": 0.031065190371263544,
+      "median": 0.028479889689854102,
+      "p95": 0.05462317695487011
+    },
+    "longest_repeat": {
+      "min": 1,
+      "max": 31,
+      "mean": 2.623,
+      "median": 2.0,
+      "p95": 4.0
+    },
+    "repeated_lines": {
+      "min": 0.0,
+      "max": 0.2,
+      "mean": 0.0017984654201327235,
+      "median": 0.0,
+      "p95": 0.0
+    },
+    "token_count": {
+      "min": 52,
+      "max": 46263,
+      "mean": 748.872,
+      "median": 397.0,
+      "p95": 2380.05
+    }
+  },
+  "dropped_examples": [
+    {
+      "doc_id": "fineweb-000000000307",
+      "reasons": [
+        "repeated_chars"
+      ],
+      "text": "Date: 22 June 2012\nReferences: ESB-2012.0027 ESB-2012.0074 ESB-2012.0269 ESB-2012.0480 ESB-2013.0537\nClick here for printable version\nClick here for PGP verifiable version\n-----BEGIN PGP SIGNED MESSAGE-----\nAUSCERT External Security Bulletin Redistribution\nSSRT100891 rev.1 - HP OpenVMS running SSL, "
+    },
+    {
+      "doc_id": "fineweb-000000000486",
+      "reasons": [
+        "repeated_chars"
+      ],
+      "text": "So i've been sitting on my butt for 2 months now and finally recuperating from my pinched nerve in my neck. The pain in my elbow and shoulder is gone. Still have numbness in the fingertips and tingling sensations in the arm. I hit the bike 3 times last week to test it out. All went well. I think I'm"
+    },
+    {
+      "doc_id": "fineweb-000000000606",
+      "reasons": [
+        "too_short"
+      ],
+      "text": "TSA employees have posted that they will limit medical items at the checkpoint.TSA management has not made statement correcting these poorly trained screeners.How many TSO's are qualified to practice medicine?Why are TSO's so poorly trained that they do not understand the exceptions to the 311 polic"
+    },
+    {
+      "doc_id": "fineweb-000000000922",
+      "reasons": [
+        "repeated_chars"
+      ],
+      "text": "Staff recommends approval of the Ordinance amending Section 2-162 of the Code of Ordinances pertaining to the Leesburg International Airport Advisory Board.\nAt the August 27, 2007 City Commission meeting, an Ordinance was approved amending the residency requirement for members of the Airport Advisor"
+    }
+  ],
+  "config": {
+    "min_chars": 200,
+    "max_chars": 100000,
+    "max_symbol_ratio": 0.3,
+    "max_repeat_char": 20,
+    "min_token_count": 50,
+    "max_token_count": 100000,
+    "max_repeated_line_ratio": 0.5
+  }
+}
