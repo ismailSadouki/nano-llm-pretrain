@@ -7,9 +7,11 @@
   "shards": 100,
   "target_tokens": null,
   "target_docs": 1000,
+  "bytes": 3126374,
+  "size": "2.98 MB",
   "config": "configs/ingest.yaml",
   "output_dir": "data/raw",
   "shard_size": 10,
   "schema_version": 1,
-  "created_at": "2026-08-01T13:26:05.397304Z"
+  "created_at": "2026-08-01T13:38:05.402405Z"
 }

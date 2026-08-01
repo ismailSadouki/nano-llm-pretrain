@@ -13,6 +13,7 @@ SHARD_SIZE = 10
 TARGET_TOKENS = None
 TARGET_DOCS = 1000
 SCHEMA = pa.schema([
+        ("doc_id", pa.string()),
         ("text", pa.string()),
         ("id", pa.string()),
         ("dump", pa.string()),
@@ -30,6 +31,21 @@ def write_shard(buffer, output_path):
     table = pa.Table.from_pylist(buffer, schema=SCHEMA)
     pq.write_table(table, output_path)
 
+def get_directory_size(path: Path) -> int:
+    """Return total size of all files in bytes."""
+    return sum(
+        f.stat().st_size
+        for f in path.glob("*")
+        if f.is_file()
+    )
+
+def format_bytes(n):
+    for unit in ["B", "KB", "MB", "GB", "TB"]:
+        if n < 1024:
+            return f"{n:.2f} {unit}"
+        n /= 1024
+    return f"{n:.2f} PB"
+
 def write_manifest(
     output_dir,
     dataset_name,
@@ -38,6 +54,7 @@ def write_manifest(
     tokens_seen,
     shard_count,
     shard_size,
+    size_bytes,
     config_path,
     schema_version
 ):
@@ -52,6 +69,8 @@ def write_manifest(
         "shards": shard_count,
         "target_tokens": TARGET_TOKENS,
         "target_docs": TARGET_DOCS,
+        "bytes": get_directory_size(output_dir),
+        "size": format_bytes(size_bytes),
         "config": config_path,
         "output_dir": str(output_dir),
         "shard_size": shard_size,
@@ -95,7 +114,11 @@ def main():
     )
 
     for doc in dataset:
-        buffer.append(doc)
+        record = {
+            "doc_id": f"fineweb-{docs_seen:012d}",
+            **doc,
+        }
+        buffer.append(record)
         if TARGET_DOCS is not None:
             pbar.update(1)
         else:
@@ -153,7 +176,7 @@ def main():
 
 
 
-
+    size_bytes = get_directory_size(OUTPUT_DIR)
     write_manifest(
         OUTPUT_DIR,
         "HuggingFaceFW/fineweb",
@@ -162,6 +185,7 @@ def main():
         tokens_seen,
         shard_idx + bool(buffer),
         SHARD_SIZE,
+        size_bytes,
         "configs/ingest.yaml",
         1
     )
