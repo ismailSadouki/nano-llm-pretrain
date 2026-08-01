@@ -1,0 +1,7 @@
+dataset: HuggingFaceFW/fineweb
+split: train
+
+output_dir: data/raw
+
+target_tokens: 200000000
+shard_size_docs: 10000
