@@ -1,0 +1,18 @@
+{
+  "documents": 996,
+  "tokens": 698862,
+  "eos_count": 996,
+  "block_size": 1024,
+  "train_blocks": 676,
+  "val_blocks": 7,
+  "train_tokens": 691873,
+  "val_tokens": 6989,
+  "pad_tokens": 530,
+  "utilization_percent": 99.92421989385066,
+  "tokenizer": "gpt2",
+  "eos_token_id": 50256,
+  "pad_token_id": 50256,
+  "bos_token_id": 50256,
+  "train_split": 0.99,
+  "pad_percentage": 0.07578010614934114
+}

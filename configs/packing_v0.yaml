@@ -1,0 +1,9 @@
+tokenizer_name: gpt2
+
+block_size: 1024
+
+train_split: 0.99
+
+eos_token: "<|endoftext|>"
+
+pad_token: "<|pad|>"
