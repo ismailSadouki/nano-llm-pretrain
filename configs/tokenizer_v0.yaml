@@ -1,0 +1,14 @@
+tokenizer_type: bytelevel_bpe
+
+vocab_size: 16000
+
+min_frequency: 2
+
+special_tokens:
+  - "<pad>"
+  - "<bos>"
+  - "<eos>"
+  - "<unk>"
+
+byte_fallback: true
+lowercase: false
