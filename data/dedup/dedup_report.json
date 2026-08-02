@@ -1,0 +1,18 @@
+{
+  "stats": {
+    "seen": 996,
+    "kept": 996,
+    "removed": 0,
+    "removed_tokens": 0
+  },
+  "duplicate_rate": 0.0,
+  "config": {
+    "shingle_size": 5,
+    "num_perm": 128,
+    "similarity_threshold": 0.85
+  },
+  "num_perm": 128,
+  "shingle_size": 5,
+  "similarity_threshold": 0.85,
+  "examples": []
+}

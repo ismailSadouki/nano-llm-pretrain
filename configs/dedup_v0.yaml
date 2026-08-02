@@ -1,0 +1,3 @@
+shingle_size: 5
+num_perm: 128
+similarity_threshold: 0.85
