@@ -12,6 +12,13 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 from utils.pack_utils import load_tokenizer, pack_tokens
 
 
+# IMPORTANT:
+# Packed datasets depend on tokenizer IDs.
+# If tokenizer.json changes, rerun:
+#
+# python scripts/pack.py
+
+
 with open("configs/packing_v0.yaml", "r") as f:
     config = yaml.safe_load(f)
 
@@ -32,6 +39,11 @@ UNK_ID = tokenizer.token_to_id("<unk>")
 assert EOS_ID is not None, "[EOS] token missing."
 assert PAD_ID is not None, "[PAD] token missing."
 assert BOS_ID is not None, "[BOS] token missing."
+assert UNK_ID is not None, "[UNK] token missing."
+
+assert PAD_ID != EOS_ID, "[PAD] and [EOS] tokens are the same."
+assert PAD_ID != BOS_ID, "[PAD] and [BOS] tokens are the same."
+assert EOS_ID != BOS_ID, "[EOS] and [BOS] tokens are the same."
 
 all_tokens = []
 docs_seen = 0
@@ -65,9 +77,14 @@ val_tokens = all_tokens[split:]
 
 BLOCK_SIZE = config["block_size"]
 
+VOCAB_SIZE = tokenizer.get_vocab_size()
+
 train_ids, train_labels, train_mask = pack_tokens(train_tokens, BLOCK_SIZE, PAD_ID)
 
 val_ids, val_labels, val_mask = pack_tokens(val_tokens, BLOCK_SIZE, PAD_ID)
+
+assert train_ids.max() < VOCAB_SIZE
+assert val_ids.max() < VOCAB_SIZE
 
 
 np.save(OUTPUT_DIR / "train_input_ids.npy", train_ids)
@@ -97,6 +114,7 @@ report["utilization_percent"] = (
         * BLOCK_SIZE
     )
 )
+report["vocab_size"] = VOCAB_SIZE
 report["tokenizer"] = str(Path(config["tokenizer_path"]).resolve())
 report["eos_token_id"] = EOS_ID
 report["pad_token_id"] = PAD_ID
