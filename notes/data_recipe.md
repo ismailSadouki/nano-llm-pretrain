@@ -2,28 +2,29 @@
 
 ## Corpus
 
-Primary corpus:
+### Primary corpus
+
 - FineWeb (English)
 
-Reason for selection:
+### Reason for selection
 
 - Publicly available
 - Modern web corpus
 - Large enough for LLM pretraining
-- Easy to stream with Hugging Face Datasets
+- Supports streaming through Hugging Face Datasets
 - Suitable for implementing a complete preprocessing pipeline
 
-Purpose:
-- Build a complete LLM pretraining pipeline.
-- Learn filtering and deduplication.
-- Train a custom tokenizer.
-- Train a small decoder-only transformer.
+### Purpose
+
+- Build a complete decoder-only LLM pretraining pipeline.
+- Learn corpus preprocessing and quality filtering.
+- Implement MinHash-LSH deduplication.
+- Train a custom Byte-Level BPE tokenizer.
+- Produce packed training data for language model pretraining.
 
 ---
 
-## Planned Pipeline
-
-
+# Pipeline Overview
 
 ```
 FineWeb
@@ -40,6 +41,10 @@ dedup.py
     ↓
 deduplicated Parquet shards
     ↓
+train_tokenizer.py
+    ↓
+tokenizer/tokenizer.json
+    ↓
 pack.py
     ↓
 packed train/validation arrays
@@ -47,32 +52,35 @@ packed train/validation arrays
 
 ---
 
-## Data source
+# Data Source
 
-Dataset:
+Dataset
+
 - HuggingFaceFW/FineWeb
-- Accessed through Hugging Face Datasets streaming API
 - English subset
+- Accessed through the Hugging Face Datasets streaming API
 
-Reason:
-- Large open web corpus
-- Rich metadata
-- Widely used for LLM pretraining
+Reason
+
+- Large-scale open web corpus
+- Rich document metadata
+- Commonly used for LLM pretraining experiments
 
 ---
-## Stage 1 — Ingestion
 
-Input
+# Stage 1 — Ingestion
+
+### Input
 
 - FineWeb streaming dataset
 
-Output
+### Output
 
 ```
 data/raw/
 ```
 
-Stored fields
+### Stored fields
 
 - doc_id
 - text
@@ -85,29 +93,35 @@ Stored fields
 - language_score
 - token_count
 
-Implementation
+### Configuration
 
 ```
+configs/ingest_v0.yaml
+```
+
+### Implementation
+
+```bash
 python scripts/ingest.py
 ```
+
 ---
 
-## Stage 2 — Quality filtering
+# Stage 2 — Quality Filtering
 
-Input
+### Input
 
 ```
 data/raw/
 ```
 
-Output
+### Output
 
 ```
 data/filtered/
 ```
 
-
-Applied filters
+### Applied filters
 
 | Filter | Threshold |
 |---------|----------:|
@@ -119,107 +133,144 @@ Applied filters
 | Maximum repeated character run | `max_repeat_char` |
 | Maximum repeated line ratio | `max_repeated_line_ratio` |
 
-Configuration
+### Configuration
 
 ```
 configs/data_filter_v0.yaml
 ```
 
-Implementation
+### Implementation
 
-```
+```bash
 python scripts/filter.py
 ```
 
-
 ---
 
-## Stage 3 — Near-duplicate removal
+# Stage 3 — Near-Duplicate Removal
 
-Input
+### Input
 
 ```
 data/filtered/
 ```
 
-Output
+### Output
 
 ```
 data/dedup/
 ```
 
-Method
+### Method
 
 - MinHash
 - Locality Sensitive Hashing (LSH)
 
-Configuration
+### Configuration
 
 | Parameter | Value |
 |-----------|------:|
-| num_perm | see config |
-| shingle_size | see config |
-| similarity_threshold | see config |
+| num_perm | See config |
+| shingle_size | See config |
+| similarity_threshold | See config |
 
-Configuration
-
+Configuration file
 
 ```
 configs/dedup_v0.yaml
 ```
 
-Implementation
+### Implementation
 
-```
+```bash
 python scripts/dedup.py
 ```
 
 ---
 
-## Stage 4 — Sequence packing
+# Stage 4 — Tokenizer Training
 
-Input
+### Input
 
 ```
 data/dedup/
 ```
 
-Output
+### Output
+
+```
+tokenizer/tokenizer.json
+```
+
+### Tokenizer
+
+- Byte-Level BPE
+- Vocabulary size: 16,000
+- Trained only on the cleaned and deduplicated corpus
+
+### Special tokens
+
+- `<pad>`
+- `<bos>`
+- `<eos>`
+- `<unk>`
+
+### Configuration
+
+```
+configs/tokenizer_v0.yaml
+```
+
+### Implementation
+
+```bash
+python scripts/train_tokenizer.py
+```
+
+---
+
+# Stage 5 — Sequence Packing
+
+### Input
+
+```
+data/dedup/
+```
+
+### Output
 
 ```
 data/packed/
 ```
 
-Tokenizer
+### Procedure
 
-- GPT-2 tokenizer (temporary)
+1. Encode each document using the custom tokenizer.
+2. Append an `<eos>` token.
+3. Concatenate all tokenized documents.
+4. Split into fixed-length sequences.
+5. Generate next-token labels.
+6. Create loss masks to ignore padding tokens.
 
-Procedure
-
-1. Tokenize every document.
-2. Append EOS token.
-3. Concatenate all documents.
-4. Split into fixed-length blocks.
-5. Generate shifted labels.
-6. Create loss masks for padded positions.
-
-Configuration
+### Configuration
 
 ```
 configs/packing_v0.yaml
 ```
 
-Implementation
+### Implementation
 
-```
+```bash
 python scripts/pack.py
 ```
 
 ---
 
-## Final outputs
+# Final Outputs
 
 ```
+data/packed/
+
 train_input_ids.npy
 train_labels.npy
 train_loss_mask.npy
@@ -227,18 +278,22 @@ train_loss_mask.npy
 val_input_ids.npy
 val_labels.npy
 val_loss_mask.npy
+
+packing_report.json
+golden_test.json
 ```
 
 ---
 
-## Reproducibility
+# Reproducibility
 
-Run the complete pipeline:
+Run the complete pipeline from raw data to packed sequences:
 
 ```bash
 python scripts/ingest.py
 python scripts/filter.py
 python scripts/dedup.py
+python scripts/train_tokenizer.py
 python scripts/pack.py
 ```
 
@@ -248,42 +303,63 @@ All preprocessing parameters are stored under:
 configs/
 ```
 
-Each stage produces a JSON report documenting its statistics.
+Each pipeline stage generates a JSON report containing the corresponding statistics.
 
 ---
 
-## Current limitations
+# Current Dataset Statistics
 
-- Uses the GPT-2 tokenizer for M1.
-- A custom BPE tokenizer will replace it in M2.
-- Deduplication parameters were selected for experimentation and may require retuning on larger corpora.
-- PII removal and language-quality classification are not yet included.
-
----
-
-## Initial Scale
-
-
-
-Dataset:
-- ≈10000 tokens
-
-Target model:
-- ~20–30M parameters
-
-Target training tokens:
-- ~200M
-
-
-Context length:
-- 1024
-
-Tokenizer:
-- BPE
-- Vocabulary = 32k
+| Metric | Value |
+|-------|------:|
+| Documents | 996 |
+| Total tokens | 733,960 |
+| Training tokens | 726,620 |
+| Validation tokens | 7,340 |
+| Context length | 1024 |
+| Training blocks | 710 |
+| Validation blocks | 8 |
+| Packing utilization | 99.83% |
+| Padding percentage | 0.17% |
 
 ---
 
-Future work
+# Current Limitations
 
-Replace FineWeb with an Algerian Darija corpus while keeping the same pipeline.
+- The tokenizer is trained only on a small FineWeb subset.
+- Packed datasets must be regenerated whenever the tokenizer changes.
+- Deduplication thresholds may require retuning for larger corpora.
+- PII removal is not implemented.
+- Language quality classification is not implemented.
+
+---
+
+# Initial Scale
+
+Dataset
+
+- 996 documents
+- 733,960 tokens after preprocessing
+
+Tokenizer
+
+- Byte-Level BPE
+- Vocabulary size: 16,000
+
+Model
+
+- Target size: 20–30M parameters
+
+Training
+
+- Target training corpus: ~200M tokens
+- Context length: 1024 tokens
+
+---
+
+# Future Work
+
+- Scale preprocessing to a substantially larger FineWeb subset.
+- Evaluate tokenizer fertility on held-out text.
+- Replace the English corpus with an Algerian Darija corpus while preserving the same preprocessing pipeline.
+- Add language identification and PII removal.
+- Explore document-aware packing and attention masking.

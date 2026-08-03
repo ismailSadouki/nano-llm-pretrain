@@ -1,4 +1,6 @@
 tokenizer_type: bytelevel_bpe
+input_dir: data/dedup
+tokenizer_dir: tokenizer
 
 vocab_size: 16000
 
@@ -12,3 +14,5 @@ special_tokens:
 
 byte_fallback: true
 lowercase: false
+
+

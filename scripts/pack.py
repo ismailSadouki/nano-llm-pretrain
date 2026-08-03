@@ -24,9 +24,14 @@ raw_shards = sorted(INPUT_DIR.glob("*.parquet"))
 
 
 
-tokenizer = load_tokenizer(config["tokenizer_name"])
-EOS_ID = tokenizer.eos_token_id
-
+tokenizer = load_tokenizer(config["tokenizer_path"])
+EOS_ID = tokenizer.token_to_id("<eos>")
+PAD_ID = tokenizer.token_to_id("<pad>")
+BOS_ID = tokenizer.token_to_id("<bos>")
+UNK_ID = tokenizer.token_to_id("<unk>")
+assert EOS_ID is not None, "[EOS] token missing."
+assert PAD_ID is not None, "[PAD] token missing."
+assert BOS_ID is not None, "[BOS] token missing."
 
 all_tokens = []
 docs_seen = 0
@@ -38,11 +43,8 @@ for shard_path in pbar:
     table = pq.read_table(shard_path)
     docs = table.to_pylist()
     for doc in docs:
-        ids = tokenizer.encode(
-            doc['text'],
-            add_special_tokens=False
-        )
-        ids.append(EOS_ID)
+
+        ids = tokenizer.encode(doc["text"]).ids + [EOS_ID]
         all_tokens.extend(ids)
         docs_seen += 1
         eos_count += 1
@@ -60,12 +62,7 @@ val_tokens = all_tokens[split:]
 
 # Pack train and validate
 
-# GPT-2 has no PAD token.
-# We temporarily reuse EOS as padding.
-# The loss mask ignores padded positions.
-# M2 replaces this with our own tokenizer's PAD token.
-# TODO(M2): replace with the PAD token of our own tokenizer.
-PAD_ID = tokenizer.eos_token_id # tmp for gpt2
+
 BLOCK_SIZE = config["block_size"]
 
 train_ids, train_labels, train_mask = pack_tokens(train_tokens, BLOCK_SIZE, PAD_ID)
@@ -100,10 +97,10 @@ report["utilization_percent"] = (
         * BLOCK_SIZE
     )
 )
-report["tokenizer"] = config["tokenizer_name"]
+report["tokenizer"] = str(Path(config["tokenizer_path"]).resolve())
 report["eos_token_id"] = EOS_ID
 report["pad_token_id"] = PAD_ID
-report["bos_token_id"] = tokenizer.bos_token_id
+report["bos_token_id"] = BOS_ID
 report["train_split"] = config["train_split"]
 report["pad_percentage"] = (
     report["pad_tokens"]

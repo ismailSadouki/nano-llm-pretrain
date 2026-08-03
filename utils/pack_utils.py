@@ -1,8 +1,8 @@
-from transformers import AutoTokenizer
+from tokenizers import Tokenizer
 import numpy as np
 
-def load_tokenizer(name):
-    return AutoTokenizer.from_pretrained(name)
+def load_tokenizer(path):
+    return Tokenizer.from_file(path)
 
 
 def pack_tokens(tokens, block_size, pad_id):
