@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-from models.layer import RMSNorm, FeedForward
+from models.layers import RMSNorm, FeedForward
 
 
 def test_rmsnorm():
