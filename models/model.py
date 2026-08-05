@@ -1,28 +1,34 @@
 from dataclasses import dataclass
+import inspect
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+
+from models.decoder import DecoderBlock
+from models.layers import RMSNorm
 
 @dataclass
 class GPTConfig:
 
     vocab_size: int = 16000
-    block_size: int = 1024 # context_length / max_seq_len
+    block_size: int = 1024
 
     n_layers: int = 12
 
+    d_model: int = 768
+
     n_heads: int = 12
-    n_kv_heads: int
+    n_kv_heads: int = 4
 
-    d_model: int = 768 # n_embd
-
-    ffn_mult: int
+    ffn_mult: int = 4
 
     dropout: float = 0.0
 
-    tie_embeddings: bool
+    tie_embeddings: bool = True
+    bias: bool = False
 
-    bias: bool
+    attn_impl: str = "naive"
 
 
 class GPTModel(nn.Module):
@@ -32,23 +38,146 @@ class GPTModel(nn.Module):
         assert config.block_size is not None
         self.config = config
 
+        self.tok_embeddings = nn.Embedding(config.vocab_size, config.d_model)
+
+        self.layers = nn.ModuleList([
+            DecoderBlock(config)
+            for _ in range(config.n_layers)
+        ])
+
+        self.norm = RMSNorm(config.d_model)
+
+        self.lm_head = nn.Linear(
+            config.d_model,
+            config.vocab_size,
+            bias=False
+        )
+        if config.tie_embeddings:
+            self.lm_head.weight = self.tok_embeddings.weight
+
+
+
+        # Weight initialization
+        self.apply(self._init_weights)
+        if config.tie_embeddings:
+            assert self.lm_head.weight is self.tok_embeddings.weight
+        # report number of parameters
+        print(f"Number of parameters: {self.get_num_parameters():,}")
+
+        
+
+
 
     def forward(self, input_ids, targets=None):
-        pass
+        B, S = input_ids.shape
+        assert S <= self.config.block_size
 
-    def get_num_parameters(self, non_embedding=False):
-        """
-            Return the number of parameters in the model.
-            For non-embedding count (default), the position embeddings get subtracted.
-            The token embeddings would too, except due to the parameter sharing these
-            params are actually used as weights in the final layer, so we include them.
-        """
-        n_params = sum(p.numel() for p in self.parameters())
+        x = self.tok_embeddings(input_ids) # [B,S] to [B,S,C]
 
-        if non_embedding:
-            n_params -= self.toke_emb.weight.numel() # check nanoGPT for this line?
+        for block in self.layers:
+            x = block(x)
 
-        return n_params
+        x = self.norm(x)
+        logits = self.lm_head(x) # [B,S,C] to [B,S,V]
+
+        if targets is None: # inference
+            return logits # should add None for loss??
+        
+        loss = F.cross_entropy(
+            logits.reshape(-1, self.config.vocab_size), # [B,S,V] -> [B*S, V]
+            targets.reshape(-1) # [B,S] -> [B*S]
+        )
+
+        return logits, loss 
+
+
+    def _init_weights(self, module):
+        if isinstance(module, nn.Linear):
+            torch.nn.init.normal_( # GPT-2 initialization.
+                module.weight,
+                mean=0.0,
+                std=0.02
+            )
+            if module.bias is not None:
+                torch.nn.init.zeros_(module.bias)
+        if isinstance(module, nn.Embedding):
+            torch.nn.init.normal_(
+                module.weight,
+                mean=0.0,
+                std=0.02
+            )
+        
+    def configure_optimizers(
+        self,
+        weight_decay: float,
+        learning_rate: float,
+        betas: tuple[float, float],
+        device_type: str = "cuda",
+    ):
+        param_dict = {
+            name: p
+            for name, p in self.named_parameters()
+            if p.requires_grad
+        }
+
+        decay_params = [
+            p 
+            for p in param_dict.values()
+            if p.dim() >= 2
+        ]
+        no_decay_params = [
+            p
+            for p in param_dict.values()
+            if p.dim() < 2
+        ]
+
+
+        optim_groups = [
+            {
+                "params": decay_params,
+                "weight_decay": weight_decay,
+            },
+            {
+                "params": no_decay_params,
+                "weight_decay": 0.0
+            }
+        ]
+
+        num_decay = sum(p.numel() for p in decay_params)
+        num_no_decay = sum(p.numel() for p in no_decay_params)
+
+        print(
+            f"Decay params: {len(decay_params)} tensors, {num_decay:,} parameters"
+        )
+
+        print(
+            f"No decay params: {len(no_decay_params)} tensors, {num_no_decay:,} parameters"
+        )
+
+        # Check if AdamW supports fused implementation
+        fused_available = "fused" in inspect.signature(torch.optim.AdamW).parameters
+
+        use_fused = fused_available and device_type == "cuda"
+
+        extra_args = {"fused": True} if use_fused else {}
+
+        optimizer = torch.optim.AdamW(
+            optim_groups,
+            lr=learning_rate,
+            betas=betas,
+            **extra_args
+        )
+
+        print(f"Using fused AdamW: {use_fused}")
+        return optimizer
+
+
+    def get_num_parameters(self):
+
+        return sum(
+            p.numel()
+            for p in self.parameters()
+        )
             
 
 
