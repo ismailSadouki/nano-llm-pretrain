@@ -68,7 +68,8 @@ def apply_rotary_pos_emb(
     cos: torch.Tensor,
     sin: torch.Tensor
 ):
-    assert q.shape == k.shape
+    assert q.shape[-1] == k.shape[-1]
+    assert q.shape[-2] == k.shape[-2]
     assert cos.shape == sin.shape
     assert q.shape[-1] == cos.shape[-1]
     assert q.shape[-2] == cos.shape[-2]
@@ -168,7 +169,8 @@ def apply_rotary_emb_complex(
     k: torch.Tensor,
     freqs_cis: torch.Tensor,
 ):
-    assert q.shape == k.shape
+    assert q.shape[-1] == k.shape[-1]
+    assert q.shape[-2] == k.shape[-2]
     assert q.shape[-1] % 2 == 0
 
     D = q.shape[-1]
