@@ -6,7 +6,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from models.attention import Attention, repeat_kv
-
+from models.kv_cache import KVCache
 
 def build_attention(attn_impl: str = "naive"):
     return Attention(
@@ -159,7 +159,57 @@ def test_causal_mask():
         rtol=1e-5,
     )
 
+def build_cache(model):
 
+    return KVCache(
+        batch_size=2,
+        max_seq_len=32,
+        n_kv_heads=model.n_kv_heads,
+        head_dim=model.head_dim,
+        device="cpu",
+        dtype=torch.float32,
+    )
+
+def test_attention_with_cache():
+
+    model = build_attention()
+
+    cache = build_cache(model)
+
+    x = torch.randn(
+        2,
+        8,
+        512,
+    )
+
+    out = model(
+        x,
+        cache=cache,
+        start_pos=0,
+    )
+
+    assert out.shape == x.shape
+
+def test_attention_updates_cache():
+
+    model = build_attention()
+
+    cache = build_cache(model)
+
+    x = torch.randn(
+        2,
+        8,
+        512,
+    )
+
+    _ = model(
+        x,
+        cache=cache,
+        start_pos=0,
+    )
+
+    assert torch.count_nonzero(cache.k) > 0
+    assert torch.count_nonzero(cache.v) > 0
 if __name__ == "__main__":
 
     test_attention_output_shape()
@@ -168,5 +218,8 @@ if __name__ == "__main__":
     test_attention_backward()
     test_naive_and_sdpa_match()
     test_causal_mask()
+
+    test_attention_with_cache()
+    test_attention_updates_cache()
 
     print("✓ Attention tests passed")

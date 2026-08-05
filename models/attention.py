@@ -73,7 +73,7 @@ class Attention(nn.Module):
             persistent=False,
         )
 
-    def forward(self, x: torch.Tensor): # x : [B, S, C]
+    def forward(self, x: torch.Tensor, cache=None, start_pos=0): # x : [B, S, C]
         B, S, C = x.shape
 
         assert C == self.dim
@@ -93,8 +93,8 @@ class Attention(nn.Module):
 
 
         # RoPE
-        cos = self.cos_cached[:S]
-        sin = self.sin_cached[:S]
+        cos = self.cos_cached[start_pos:start_pos + S]
+        sin = self.sin_cached[start_pos:start_pos + S]
         q, k = apply_rotary_pos_emb(
             q,
             k,
@@ -102,15 +102,21 @@ class Attention(nn.Module):
             sin,
         )
 
+        if cache is not None:
+            cache.k[:, :, start_pos:start_pos + S] = k
+            cache.v[:, :, start_pos:start_pos + S] = v
+
+            k = cache.k[:, :, : start_pos + S]
+            v = cache.v[:, :, : start_pos + S]
 
         k = repeat_kv(k, self.n_rep) # [B, H, S, D]
         v = repeat_kv(v, self.n_rep) # [B, H, S, D]
 
 
         if self.attn_impl == "naive":
-            out = self.naive_attention(q, k, v)
+            out = self.naive_attention(q, k, v, start_pos)
         elif self.attn_impl == "sdpa":
-            out = self.sdpa_attention(q, k, v)
+            out = self.sdpa_attention(q, k, v, cache, start_pos)
         else:
             raise ValueError(
                 f"Unknown attention implementation: {self.attn_impl}"
@@ -124,13 +130,14 @@ class Attention(nn.Module):
         q: torch.Tensor,
         k: torch.Tensor,
         v: torch.Tensor,
+        start_pos: int
     ):
         B, _, S, _ = q.shape
         scores = ( # [B, H, S, S]
             q @ k.transpose(-2, -1)
         ) * self.scale
 
-        mask = self.causal_mask[:S, :S]
+        mask = self.causal_mask[start_pos:start_pos + S, : start_pos + S]
         mask = mask.unsqueeze(0).unsqueeze(0)
         scores = scores.masked_fill(
             ~mask,
@@ -151,17 +158,36 @@ class Attention(nn.Module):
         q: torch.Tensor,
         k: torch.Tensor,
         v: torch.Tensor,
+        cache,
+        start_pos: int,
     ):
         B, _, S, _ = q.shape
-        out = F.scaled_dot_product_attention(
-            q,
-            k,
-            v,
-            attn_mask=None,
-            dropout_p=0.0,
-            # dropout_p = self.dropout if self.training else 0.0
-            is_causal=True,
-        )
+        if cache is None:
+            out = F.scaled_dot_product_attention(
+                q,
+                k,
+                v,
+                attn_mask=None,
+                dropout_p=0.0,
+                # dropout_p = self.dropout if self.training else 0.0
+                is_causal=True,
+            )
+        else:
+            mask = self.causal_mask[
+                start_pos:start_pos + S,
+                :start_pos + S,
+            ]
+
+            mask = mask.unsqueeze(0).unsqueeze(0)
+
+            out = F.scaled_dot_product_attention(
+                q,
+                k,
+                v,
+                attn_mask=mask,
+                dropout_p=0.0,
+                is_causal=False,
+            )
 
         out = out.transpose(1, 2)
         out = out.reshape(B, S, self.dim)

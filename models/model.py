@@ -68,14 +68,21 @@ class GPTModel(nn.Module):
 
 
 
-    def forward(self, input_ids, targets=None):
+    def forward(self, input_ids, targets=None, caches=None, start_pos=0):
         B, S = input_ids.shape
         assert S <= self.config.block_size
 
         x = self.tok_embeddings(input_ids) # [B,S] to [B,S,C]
 
-        for block in self.layers:
-            x = block(x)
+        for i, block in enumerate(self.layers):
+            cache = None if caches is None else caches[i]
+
+            x = block(
+                x,
+                cache=cache,
+                start_pos=start_pos
+            )
+
 
         x = self.norm(x)
         logits = self.lm_head(x) # [B,S,C] to [B,S,V]

@@ -25,9 +25,13 @@ class DecoderBlock(nn.Module):
             bias=config.bias,
         )
         # self.dropout = nn.Dropout(config.dropout)
-    def forward(self, x):
+    def forward(self, x, cache=None, start_pos = 0):
 
-        x = x + self.attn(self.attn_norm(x))
+        x = x + self.attn(
+            self.attn_norm(x),
+            cache=cache,
+            start_pos=start_pos,
+        )
         x = x + self.ffn(self.ffn_norm(x))
 
         return x

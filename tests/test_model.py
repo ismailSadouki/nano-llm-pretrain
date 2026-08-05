@@ -6,7 +6,7 @@ import torch
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from models.model import GPTConfig, GPTModel
-
+from models.kv_cache import KVCache
 
 def build_model():
     config = GPTConfig(
@@ -186,6 +186,104 @@ def test_model_forward_backward():
     grads = [p.grad for p in model.parameters() if p.requires_grad]
     assert all(g is not None for g in grads)
 
+
+def build_caches(model, batch_size=2):
+
+    return [
+        KVCache(
+            batch_size=batch_size,
+            max_seq_len=model.config.block_size,
+            n_kv_heads=model.config.n_kv_heads,
+            head_dim=model.config.d_model // model.config.n_heads,
+            device="cpu",
+            dtype=torch.float32,
+        )
+        for _ in range(model.config.n_layers)
+    ]
+
+
+def test_forward_with_cache():
+
+    model = build_model()
+
+    caches = build_caches(model)
+
+    input_ids = torch.randint(
+        0,
+        model.config.vocab_size,
+        (2, 8),
+    )
+
+    logits = model(
+        input_ids,
+        caches=caches,
+        start_pos=0,
+    )
+
+    assert logits.shape == (
+        2,
+        8,
+        model.config.vocab_size,
+    )
+
+def test_cache_updated():
+
+    model = build_model()
+
+    caches = build_caches(model)
+
+    input_ids = torch.randint(
+        0,
+        model.config.vocab_size,
+        (2, 8),
+    )
+
+    model(
+        input_ids,
+        caches=caches,
+        start_pos=0,
+    )
+
+    for cache in caches:
+        assert torch.count_nonzero(cache.k) > 0
+        assert torch.count_nonzero(cache.v) > 0
+
+def test_incremental_forward():
+
+    model = build_model()
+
+    caches = build_caches(model)
+
+    prompt = torch.randint(
+        0,
+        model.config.vocab_size,
+        (2, 8),
+    )
+
+    model(
+        prompt,
+        caches=caches,
+        start_pos=0,
+    )
+
+    next_token = torch.randint(
+        0,
+        model.config.vocab_size,
+        (2, 1),
+    )
+
+    logits = model(
+        next_token,
+        caches=caches,
+        start_pos=8,
+    )
+
+    assert logits.shape == (
+        2,
+        1,
+        model.config.vocab_size,
+    )
+
 if __name__ == "__main__":
 
     test_forward_shape()
@@ -196,5 +294,8 @@ if __name__ == "__main__":
     test_optimizer_creation()
     test_sequence_length_assertion()
     test_model_forward_backward()
+    test_forward_with_cache()
+    test_cache_updated()
+    test_incremental_forward()
 
     print("✓ All model tests passed.")

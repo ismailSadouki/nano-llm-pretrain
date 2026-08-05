@@ -1,11 +1,12 @@
-import torch
-
 import sys
 from pathlib import Path
+
+import torch
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from models.decoder import DecoderBlock
+from models.kv_cache import KVCache
 from models.model import GPTConfig
 
 
@@ -26,15 +27,23 @@ def build_decoder():
     return DecoderBlock(config), config
 
 
+def build_cache(config, batch_size=2):
+
+    return KVCache(
+        batch_size=batch_size,
+        max_seq_len=config.block_size,
+        n_kv_heads=config.n_kv_heads,
+        head_dim=config.d_model // config.n_heads,
+        device="cpu",
+        dtype=torch.float32,
+    )
+
+
 def test_decoder_output_shape():
 
     model, config = build_decoder()
 
-    x = torch.randn(
-        2,
-        16,
-        config.d_model,
-    )
+    x = torch.randn(2, 16, config.d_model)
 
     out = model(x)
 
@@ -45,11 +54,7 @@ def test_decoder_dtype():
 
     model, config = build_decoder()
 
-    x = torch.randn(
-        2,
-        16,
-        config.d_model,
-    )
+    x = torch.randn(2, 16, config.d_model)
 
     out = model(x)
 
@@ -90,15 +95,10 @@ def test_decoder_residual_connection():
 
     model, config = build_decoder()
 
-    x = torch.randn(
-        2,
-        16,
-        config.d_model,
-    )
+    x = torch.randn(2, 16, config.d_model)
 
     out = model(x)
 
-    # residual block should modify the activations
     assert not torch.allclose(out, x)
 
 
@@ -106,11 +106,7 @@ def test_decoder_train_eval():
 
     model, config = build_decoder()
 
-    x = torch.randn(
-        2,
-        16,
-        config.d_model,
-    )
+    x = torch.randn(2, 16, config.d_model)
 
     model.train()
     out_train = model(x)
@@ -121,6 +117,45 @@ def test_decoder_train_eval():
     assert out_train.shape == out_eval.shape
 
 
+#
+# -------- NEW TESTS --------
+#
+
+def test_decoder_with_cache():
+
+    model, config = build_decoder()
+
+    cache = build_cache(config)
+
+    x = torch.randn(2, 8, config.d_model)
+
+    out = model(
+        x,
+        cache=cache,
+        start_pos=0,
+    )
+
+    assert out.shape == x.shape
+
+
+def test_decoder_updates_cache():
+
+    model, config = build_decoder()
+
+    cache = build_cache(config)
+
+    x = torch.randn(2, 8, config.d_model)
+
+    _ = model(
+        x,
+        cache=cache,
+        start_pos=0,
+    )
+
+    assert torch.count_nonzero(cache.k) > 0
+    assert torch.count_nonzero(cache.v) > 0
+
+
 if __name__ == "__main__":
 
     test_decoder_output_shape()
@@ -129,5 +164,8 @@ if __name__ == "__main__":
     test_decoder_contains_expected_modules()
     test_decoder_residual_connection()
     test_decoder_train_eval()
+
+    test_decoder_with_cache()
+    test_decoder_updates_cache()
 
     print("✓ Decoder tests passed")
