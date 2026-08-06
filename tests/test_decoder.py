@@ -1,9 +1,9 @@
 import sys
 from pathlib import Path
-
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 import torch
 
-sys.path.append(str(Path(__file__).resolve().parent.parent))
+
 
 from models.decoder import DecoderBlock
 from models.kv_cache import KVCache
