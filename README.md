@@ -197,3 +197,20 @@ LM Head
     ▼
 Vocabulary Logits
 ```
+
+| Component | Value |
+|-----------|------:|
+| Vocabulary | 16,000 |
+| Context length | 1024 |
+| Decoder blocks | 12 |
+| Hidden dimension | 768 |
+| Query heads | 12 |
+| KV heads | 4 |
+| Head dimension | 64 |
+| FFN multiplier | 4 |
+| Normalization | RMSNorm |
+| Gated activations | SwiGLU |
+| Positional encoding | RoPE |
+| Attention | Grouped Query Attention |
+| Inference | KV Cache |
+| Sampling | Greedy / Temperature / Top-k / Top-p |
