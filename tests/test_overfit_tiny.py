@@ -50,9 +50,12 @@ def test_overfit_tiny():
 
         optimizer.zero_grad()
 
+        loss_mask = torch.ones_like(targets, dtype=torch.bool)
+
         _, loss = model(
             input_ids,
-            targets,
+            targets=targets,
+            loss_mask=loss_mask,
         )
 
         if initial_loss is None:

@@ -1,0 +1,25 @@
+seed: 42
+
+batch_size: 8
+gradient_accumulation_steps: 16
+
+max_iters: 50000
+
+eval_interval: 500
+eval_iters: 100
+
+learning_rate: 3e-4
+min_lr: 3e-5
+
+warmup_iters: 1000
+lr_decay_iters: 50000    # add this
+
+weight_decay: 0.1
+betas: [0.9, 0.95]
+
+grad_clip: 1.0
+
+device: cuda
+dtype: bfloat16
+
+compile: false            # optional, useful later

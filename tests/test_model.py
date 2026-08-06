@@ -1,9 +1,9 @@
 import sys
 from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 import torch
 
-sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from models.model import GPTConfig, GPTModel
 from models.kv_cache import KVCache
@@ -59,9 +59,12 @@ def test_forward_with_loss():
         (2, 16),
     )
 
+    loss_mask = torch.ones_like(targets, dtype=torch.bool)
+
     logits, loss = model(
         input_ids,
         targets,
+        loss_mask=loss_mask,
     )
 
     assert logits.shape == (
@@ -90,9 +93,12 @@ def test_backward():
         (2, 16),
     )
 
+    loss_mask = torch.ones_like(targets, dtype=torch.bool)
+
     _, loss = model(
         input_ids,
-        targets,
+        targets=targets,
+        loss_mask=loss_mask,
     )
 
     loss.backward()
@@ -176,7 +182,13 @@ def test_model_forward_backward():
     input_ids = torch.randint(0, config.vocab_size, (2, 16))
     targets = torch.randint(0, config.vocab_size, (2, 16))
 
-    logits, loss = model(input_ids, targets)
+    loss_mask = torch.ones_like(targets, dtype=torch.bool)
+
+    logits, loss = model(
+        input_ids,
+        targets=targets,
+        loss_mask=loss_mask,
+    )
 
     assert logits.shape == (2, 16, config.vocab_size)
     assert loss.ndim == 0

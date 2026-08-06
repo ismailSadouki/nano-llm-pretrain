@@ -84,7 +84,7 @@ class GPTModel(nn.Module):
 
 
 
-    def forward(self, input_ids, targets=None, caches=None, start_pos=0):
+    def forward(self, input_ids, targets=None, loss_mask=None, caches=None, start_pos=0):
         B, S = input_ids.shape
         assert S <= self.config.block_size
 
@@ -106,10 +106,23 @@ class GPTModel(nn.Module):
         if targets is None: # inference
             return logits # should add None for loss??
         
+        # loss = F.cross_entropy(
+        #     logits.reshape(-1, self.config.vocab_size), # [B,S,V] -> [B*S, V]
+        #     targets.reshape(-1) # [B,S] -> [B*S]
+        # )
+
         loss = F.cross_entropy(
-            logits.reshape(-1, self.config.vocab_size), # [B,S,V] -> [B*S, V]
-            targets.reshape(-1) # [B,S] -> [B*S]
+            logits.reshape(-1, self.config.vocab_size),
+            targets.reshape(-1),
+            reduction="none",
         )
+
+        if loss_mask is not None:
+            loss = loss[loss_mask.reshape(-1)]
+
+        assert loss.numel() > 0, "All tokens are masked."
+
+        loss = loss.mean()
 
         return logits, loss 
 
