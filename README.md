@@ -166,3 +166,34 @@ B["Data Pipeline<br/><a href='notes/decisions.md#data-pipeline'>Notes ↗</a>"]
 C["Tokenizer<br/><a href='notes/decisions.md#tokenizer'>Notes ↗</a>"]
 ...
 ```
+
+
+
+
+
+## Model Architecture
+
+```
+Input IDs
+    │
+    ▼
+Token Embedding
+    │
+    ▼
+┌──────────────────────────┐
+│ Decoder Block × 12       │
+│  • RMSNorm               │
+│  • GQA + RoPE            │
+│  • FeedForward           │
+│  • Residual Connections  │
+└──────────────────────────┘
+    │
+    ▼
+Final RMSNorm
+    │
+    ▼
+LM Head
+    │
+    ▼
+Vocabulary Logits
+```

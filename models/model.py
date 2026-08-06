@@ -62,7 +62,23 @@ class GPTModel(nn.Module):
         if config.tie_embeddings:
             assert self.lm_head.weight is self.tok_embeddings.weight
         # report number of parameters
-        print(f"Number of parameters: {self.get_num_parameters():,}")
+        # print(f"Number of parameters: {self.get_num_parameters():,}")
+        n_params = self.get_num_parameters()
+
+        print(
+            f"""
+        Architecture
+        ------------
+        Layers:        {config.n_layers}
+        Hidden dim:    {config.d_model}
+        Heads:         {config.n_heads}
+        KV heads:      {config.n_kv_heads}
+        FFN mult:      {config.ffn_mult}
+
+        Parameters:
+        {n_params:,}
+        """
+        )
 
         
 
