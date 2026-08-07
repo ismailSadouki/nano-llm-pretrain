@@ -32,3 +32,32 @@ Notes:
 - AMP stable.
 - No NaNs observed.
 - Atomic checkpointing works.
+
+
+
+
+
+## M4.6-full-001
+
+Commit: c993cc7415ccf20457b2fa6ad926c2340ac98562
+Seed: 42
+Parameters: 20,610,880
+
+Batch size: 8
+Gradient accumulation: 4
+Effective batch size: 32
+
+Best validation loss: ...
+Final validation loss: ...
+
+Average tokens/sec: ...
+
+Peak GPU memory: ...
+
+Checkpoint resume: verified
+
+Observations:
+- Training remained stable.
+- No NaN losses.
+- Validation loss decreased from ...
+- ...
