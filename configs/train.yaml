@@ -1,3 +1,4 @@
+tokenizer_path: tokenizer/tokenizer.json
 seed: 42
 
 batch_size: 8

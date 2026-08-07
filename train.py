@@ -1,6 +1,8 @@
+import math
 import shutil
 import sys
 from pathlib import Path
+import time
 
 from utils.logger import JSONLLogger
 sys.path.append(str(Path(__file__).resolve().parent.parent))
@@ -71,17 +73,26 @@ def train(
         logger,
         run_dir
 ):
+    print(f"ln(vocab_size) = {math.log(model.config.vocab_size):.4f}")
     model.train()
     optimizer.zero_grad(set_to_none=True)
     if device.type == "cuda":
         torch.cuda.reset_peak_memory_stats()
 
     step = start_step
+    
+    tokens_per_step = (
+        config["batch_size"]
+        * model.config.block_size
+        * config["gradient_accumulation_steps"]
+    )
 
+    total_train_time = 0.0
+    total_optimizer_steps = 0
 
     while step < config['max_iters']: # one optimizer step corresponds to one effective batch.
 
-
+        step_start = time.perf_counter()
 
         # Gradient accumulation
         for micro_step in range(config["gradient_accumulation_steps"]):
@@ -142,6 +153,15 @@ def train(
 
         optimizer.zero_grad(set_to_none=True)
 
+        if device.type == "cuda":
+            torch.cuda.synchronize()
+
+        step_time = time.perf_counter() - step_start
+
+        total_train_time += step_time
+        total_optimizer_steps += 1
+
+
 
         # Logging / evaluation
         if step % config["eval_interval"] == 0:
@@ -154,13 +174,20 @@ def train(
                 device=device,
                 amp_dtype=amp_dtype
             )
+
+
+            tokens_per_second = tokens_per_step / step_time
+
+
             print(
                 f"step {step:6d} | "
                 f"train {losses['train']:.4f} | "
                 f"val {losses['val']:.4f} | "
                 f"lr {lr:.2e} | "
-                f"grad_norm {grad_norm:.3f}"
+                f"grad_norm {grad_norm:.3f} | "
+                f"tok/s {tokens_per_second:,.0f}"
             )
+
 
 
 
@@ -213,9 +240,11 @@ def train(
                 grad_norm=float(grad_norm),
                 best_val_loss=best_val_loss,
                 peak_memory_mb=peak_memory,
+                tokens_per_second=tokens_per_second,
             )                
 
         step += 1
+
 
 
 

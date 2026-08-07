@@ -256,3 +256,25 @@ When resuming, the training state is restored, including:
 * CPU/GPU RNG state
 
 This allows training to continue from the previous checkpoint without restarting optimization.
+
+
+## Generate text
+
+Generate text from a trained checkpoint:
+
+```bash
+python sample.py \
+    --checkpoint runs/<run_name>/best.pt \
+    --prompt "Once upon a time" \
+    --max_new_tokens 200 \
+    --temperature 0.8 \
+    --top_k 50
+```
+
+Or use the latest checkpoint:
+
+```bash
+python sample.py \
+    --checkpoint runs/<run_name>/latest.pt \
+    --prompt "The future of AI is"
+```
