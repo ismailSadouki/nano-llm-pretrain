@@ -9,9 +9,14 @@ from tqdm import tqdm
 
 OUTPUT_DIR = Path("data/raw")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-SHARD_SIZE = 10
-TARGET_TOKENS = None
-TARGET_DOCS = 1000
+# SHARD_SIZE = 10
+# TARGET_TOKENS = None
+# TARGET_DOCS = 1000
+
+TARGET_TOKENS = 200_000_000
+TARGET_DOCS = None
+SHARD_SIZE = 10_000
+
 SCHEMA = pa.schema([
         ("doc_id", pa.string()),
         ("text", pa.string()),
