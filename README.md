@@ -214,3 +214,45 @@ Vocabulary Logits
 | Attention | Grouped Query Attention |
 | Inference | KV Cache |
 | Sampling | Greedy / Temperature / Top-k / Top-p |
+
+
+
+
+## Resume Training
+
+Training can be resumed from any saved checkpoint.
+
+Resume from the latest checkpoint:
+
+```bash
+python train.py \
+    --config configs/train.yaml \
+    --resume runs/<run_name>/latest.pt
+```
+
+Resume from the best validation checkpoint:
+
+```bash
+python train.py \
+    --config configs/train.yaml \
+    --resume runs/<run_name>/best.pt
+```
+
+For smoke tests:
+
+```bash
+python train.py \
+    --config configs/smoke.yaml \
+    --resume runs/<run_name>/latest.pt
+```
+
+When resuming, the training state is restored, including:
+
+* Model weights
+* Optimizer state
+* GradScaler state (when enabled)
+* Training step
+* Best validation loss
+* CPU/GPU RNG state
+
+This allows training to continue from the previous checkpoint without restarting optimization.

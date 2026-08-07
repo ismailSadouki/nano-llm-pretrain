@@ -1,11 +1,17 @@
+import shutil
 import sys
 from pathlib import Path
+
+from utils.logger import JSONLLogger
 sys.path.append(str(Path(__file__).resolve().parent.parent))
+
+from utils.checkpoint import (save_checkpoint, load_checkpoint)
 
 
 import yaml
 import torch
 import argparse
+from datetime import datetime
 
 from models.model import GPTModel, GPTConfig
 from utils.data import PackedDataset
@@ -59,15 +65,18 @@ def train(
         config,
         device,
         amp_dtype,
-        scaler
+        scaler,
+        start_step,
+        best_val_loss,
+        logger,
+        run_dir
 ):
     model.train()
     optimizer.zero_grad(set_to_none=True)
     if device.type == "cuda":
         torch.cuda.reset_peak_memory_stats()
 
-    step = 0
-    best_val_loss = float("inf")
+    step = start_step
 
 
     while step < config['max_iters']: # one optimizer step corresponds to one effective batch.
@@ -152,32 +161,59 @@ def train(
                 f"lr {lr:.2e} | "
                 f"grad_norm {grad_norm:.3f}"
             )
+
+
+
+
+            save_checkpoint(
+                path=run_dir / "latest.pt",
+                model=model,
+                optimizer=optimizer,
+                scaler=scaler,
+                step=step,
+                best_val_loss=best_val_loss,
+                model_config=model.config,
+                train_config=config,
+            )
+
             if losses["val"] < best_val_loss:
                 best_val_loss = losses["val"]
 
-                checkpoint = {
-                    "model": model.state_dict(),
-                    "optimizer": optimizer.state_dict(),
-                    "step": step,
-                    "best_val_loss": best_val_loss,
-                    "model_config": model.config,
-                    "train_config": config,
-                    "scaler": scaler.state_dict() if scaler.is_enabled() else None,
-                }
+                save_checkpoint(
+                    path=run_dir / "best.pt",
+                    model=model,
+                    optimizer=optimizer,
+                    scaler=scaler,
+                    step=step,
+                    best_val_loss=best_val_loss,
+                    model_config=model.config,
+                    train_config=config
 
-                torch.save(
-                    checkpoint,
-                    "checkpoints/best.pt",
                 )
-                print(f"Saved checkpoint at step {step}")
 
-                if device.type == "cuda":
-                    peak_memory = torch.cuda.max_memory_allocated() / 1024**2
 
-                    print(
-                        f"Peak memory: {peak_memory:.1f} MB"
+                print(f"Saved best checkpoint at step {step}")
+            peak_memory = None
+
+
+            if device.type == "cuda":
+                peak_memory = torch.cuda.max_memory_allocated() / 1024**2
+
+                print(
+                    f"Peak memory: {peak_memory:.1f} MB"
                     )
-                    # torch.cuda.reset_peak_memory_stats()
+
+
+
+            logger.log(
+                step=step,
+                train_loss=losses["train"],
+                val_loss=losses["val"],
+                learning_rate=lr,
+                grad_norm=float(grad_norm),
+                best_val_loss=best_val_loss,
+                peak_memory_mb=peak_memory,
+            )                
 
         step += 1
 
@@ -185,7 +221,6 @@ def train(
 
 
 def main():
-    Path("checkpoints").mkdir(parents=True, exist_ok=True)
 
 
     parser = argparse.ArgumentParser()
@@ -193,8 +228,34 @@ def main():
         "--config",
         default="configs/train.yaml",
     )
+    parser.add_argument(
+        "--resume",
+        type=str,
+        default=None,
+        help="Resume from checkpoint"
+    )
 
     args = parser.parse_args()
+
+
+    # Create run directory
+    if args.resume is not None:
+        run_dir = Path(args.resume).parent
+    else:
+        run_name = datetime.now().strftime("%Y%m%d_%H%M%S")
+        run_dir = Path("runs") / run_name
+
+    run_dir.mkdir(parents=True, exist_ok=True)
+
+    if args.resume is None:
+        shutil.copy(
+            args.config,
+            run_dir / "train.yaml",
+        )
+        
+    logger = JSONLLogger(
+        run_dir / "log.jsonl"
+    )
 
     config = load_config(args.config)
 
@@ -235,6 +296,25 @@ def main():
         device_type=device.type
     )
 
+    start_step = 0
+    best_val_loss = float("inf")
+
+    if args.resume:
+        ckpt = load_checkpoint(
+            path=args.resume,
+            model=model,
+            optimizer=optimizer,
+            scaler=scaler
+        )
+
+        start_step = ckpt["step"] + 1
+        best_val_loss = ckpt["best_val_loss"]
+
+        print(
+            f"Resumed training from step {start_step} "
+            f"(best val = {best_val_loss:.4f})"
+        )
+
     train_dataset, val_dataset = build_dataset()
 
 
@@ -247,7 +327,11 @@ def main():
                 config=config,
                 device=device,
                 amp_dtype=amp_dtype,
-                scaler=scaler
+                scaler=scaler,
+                start_step=start_step,
+                best_val_loss=best_val_loss,
+                logger=logger,
+                run_dir=run_dir,
             )
 
     except KeyboardInterrupt:
