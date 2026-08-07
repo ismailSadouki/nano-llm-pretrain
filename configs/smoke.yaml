@@ -17,8 +17,8 @@ betas: [0.9, 0.95]
 
 grad_clip: 1.0
 
-device: cpu
-dtype: float32
+device: cuda
+dtype: auto
 
 model:
   vocab_size: 16000

@@ -1,3 +1,5 @@
+from contextlib import nullcontext
+
 import torch
 
 
@@ -8,7 +10,8 @@ def estimate_loss(
         val_dataset,
         eval_iters,
         batch_size,
-        device
+        device,
+        amp_dtype
 ):
     """
     Estimate average train and validation loss.
@@ -25,6 +28,8 @@ def estimate_loss(
 
     model.eval()
 
+  
+
 
     for split, dataset in (
                             ("train", train_dataset),
@@ -34,16 +39,22 @@ def estimate_loss(
 
         for k in range(eval_iters):
 
+            if device.type == "cuda" and amp_dtype is not None:
+                ctx = torch.autocast("cuda", dtype=amp_dtype)
+            else:
+                ctx = nullcontext()
+
             x, y, loss_mask = dataset.get_batch(
                 batch_size=batch_size,
                 device=device
             )
 
-            _, loss = model(
-                x,
-                targets=y,
-                loss_mask=loss_mask
-            )
+            with ctx:
+                _, loss = model(
+                                x,
+                                targets=y,
+                                loss_mask=loss_mask
+                            )
 
 
             split_losses[k] = loss.item()

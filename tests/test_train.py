@@ -1,8 +1,9 @@
-import torch
 import sys
 from pathlib import Path
-sys.path.append(str(Path(__file__).resolve().parent.parent))
 
+import torch
+
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from models.model import GPTModel, GPTConfig
 from utils.data import PackedDataset
@@ -36,6 +37,11 @@ def test_single_training_step():
         device_type=device.type,
     )
 
+    scaler = torch.amp.GradScaler(
+        device.type,
+        enabled=False,      # CPU -> no fp16 scaling
+    )
+
     dataset = PackedDataset("train")
 
     optimizer.zero_grad(set_to_none=True)
@@ -53,7 +59,9 @@ def test_single_training_step():
 
     assert torch.isfinite(loss)
 
-    loss.backward()
+    scaler.scale(loss).backward()
+
+    scaler.unscale_(optimizer)
 
     grad_norm = torch.nn.utils.clip_grad_norm_(
         model.parameters(),
@@ -62,7 +70,8 @@ def test_single_training_step():
 
     assert torch.isfinite(grad_norm)
 
-    optimizer.step()
+    scaler.step(optimizer)
+    scaler.update()
 
     optimizer.zero_grad(set_to_none=True)
 
@@ -106,19 +115,35 @@ def test_estimate_loss():
         eval_iters=2,
         batch_size=2,
         device=device,
+        amp_dtype=None,      # CPU -> fp32
     )
-
-    assert "train" in losses
-    assert "val" in losses
 
     assert isinstance(losses["train"], float)
     assert isinstance(losses["val"], float)
 
+def test_optimizer_lr_update():
+
+    model = build_model()
+
+    optimizer = model.configure_optimizers(
+        weight_decay=0.1,
+        learning_rate=1e-3,
+        betas=(0.9, 0.95),
+        device_type="cpu",
+    )
+
+    new_lr = 5e-4
+
+    for group in optimizer.param_groups:
+        group["lr"] = new_lr
+
+    assert optimizer.param_groups[0]["lr"] == new_lr
+    assert optimizer.param_groups[1]["lr"] == new_lr
 
 if __name__ == "__main__":
-
     test_single_training_step()
     test_lr_scheduler()
     test_estimate_loss()
+    test_optimizer_lr_update()
 
     print("✓ Training tests passed.")

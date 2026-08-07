@@ -20,6 +20,6 @@ betas: [0.9, 0.95]
 grad_clip: 1.0
 
 device: cuda
-dtype: bfloat16
+dtype: auto # fp16 or bf16...?
 
 compile: false            # optional, useful later

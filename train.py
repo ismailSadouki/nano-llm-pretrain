@@ -1,13 +1,20 @@
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+
+
 import yaml
 import torch
 import argparse
 
 from models.model import GPTModel, GPTConfig
 from utils.data import PackedDataset
+from contextlib import nullcontext
 from utils.eval import estimate_loss
 from utils.lr_scheduler import get_lr
-from pathlib import Path
 
+
+from utils.device import get_device_and_dtype
 
 
 def load_config(path):
@@ -42,21 +49,30 @@ def build_dataset():
     return train_dataset, val_dataset
 
 
+
+
 def train(
         model,
         optimizer,
         train_dataset,
         val_dataset,
         config,
-        device
+        device,
+        amp_dtype,
+        scaler
 ):
     model.train()
     optimizer.zero_grad(set_to_none=True)
+    if device.type == "cuda":
+        torch.cuda.reset_peak_memory_stats()
 
     step = 0
     best_val_loss = float("inf")
 
+
     while step < config['max_iters']: # one optimizer step corresponds to one effective batch.
+
+
 
         # Gradient accumulation
         for micro_step in range(config["gradient_accumulation_steps"]):
@@ -65,11 +81,22 @@ def train(
                 device=device
             )
 
-            _, loss = model(
-                x,
-                targets=y,
-                loss_mask=loss_mask
-            )
+
+
+            if device.type == "cuda" and amp_dtype is not None:
+                ctx = torch.autocast(
+                            device_type="cuda",
+                            dtype=amp_dtype,
+                        )
+            else:
+                ctx = nullcontext()
+
+            with ctx:
+                _, loss = model(
+                    x,
+                    targets=y,
+                    loss_mask=loss_mask
+                )
             if not torch.isfinite(loss):
                 raise RuntimeError(f"Non-finite loss at step {step}")
 
@@ -78,8 +105,10 @@ def train(
 
             # train_loss = loss.item() * config["gradient_accumulation_steps"]
 
-            loss.backward()
+            scaler.scale(loss).backward()
 
+
+        scaler.unscale_(optimizer)
         grad_norm = torch.nn.utils.clip_grad_norm_(
             model.parameters(),
             config["grad_clip"]
@@ -98,7 +127,10 @@ def train(
 
 
 
-        optimizer.step()
+
+        scaler.step(optimizer)
+        scaler.update()
+
         optimizer.zero_grad(set_to_none=True)
 
 
@@ -111,6 +143,7 @@ def train(
                 eval_iters=config["eval_iters"],
                 batch_size=config["batch_size"],
                 device=device,
+                amp_dtype=amp_dtype
             )
             print(
                 f"step {step:6d} | "
@@ -129,6 +162,7 @@ def train(
                     "best_val_loss": best_val_loss,
                     "model_config": model.config,
                     "train_config": config,
+                    "scaler": scaler.state_dict() if scaler.is_enabled() else None,
                 }
 
                 torch.save(
@@ -137,6 +171,13 @@ def train(
                 )
                 print(f"Saved checkpoint at step {step}")
 
+                if device.type == "cuda":
+                    peak_memory = torch.cuda.max_memory_allocated() / 1024**2
+
+                    print(
+                        f"Peak memory: {peak_memory:.1f} MB"
+                    )
+                    # torch.cuda.reset_peak_memory_stats()
 
         step += 1
 
@@ -159,9 +200,28 @@ def main():
 
     set_seed(config["seed"])
 
-    device = torch.device(
-        "cuda" if torch.cuda.is_available() else "cpu"
+    device, amp_dtype, use_scaler = get_device_and_dtype(
+        requested_dtype=config["dtype"]
     )
+
+    print(f"Device      : {device}")
+
+    print(
+        "AMP dtype   :",
+        amp_dtype if amp_dtype is not None else "fp32"
+    )
+
+    print(
+        "GradScaler  :",
+        "enabled" if use_scaler else "disabled"
+    )
+
+
+    scaler = torch.amp.GradScaler(
+        device.type,
+        enabled=use_scaler
+    )
+
 
     model = build_model(
         config=config,
@@ -185,7 +245,9 @@ def main():
                 train_dataset=train_dataset,
                 val_dataset=val_dataset,
                 config=config,
-                device=device
+                device=device,
+                amp_dtype=amp_dtype,
+                scaler=scaler
             )
 
     except KeyboardInterrupt:
