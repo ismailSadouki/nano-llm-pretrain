@@ -1,0 +1,11 @@
+min_chars: 200
+max_chars: 1000000
+
+max_symbol_ratio: 0.2
+
+min_token_count: 20
+max_token_count: 100000
+
+max_repeat_char: 10
+
+max_repeated_line_ratio: 0.3
